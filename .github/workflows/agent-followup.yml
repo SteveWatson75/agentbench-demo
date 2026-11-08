@@ -1,0 +1,70 @@
+name: Agent follow-up
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  # These apply only to the built-in GITHUB_TOKEN. The workflow uses a repo-scoped
+  # PAT (OPENCODE_GH_TOKEN) for write access to comments, branches and PRs.
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: opencode-comment-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  respond:
+    if: >-
+      github.event.sender.login == github.repository_owner &&
+      (startsWith(github.event.comment.body, '/opencode') ||
+       github.event.comment.body == '/oc' ||
+       startsWith(github.event.comment.body, '/oc '))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DR_WATSON_MODE: github-action
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.OPENCODE_GH_TOKEN }}
+          persist-credentials: true
+
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "Dr Watson"
+          git config --global user.email "dr-watson@users.noreply.github.com"
+
+      - uses: ./.github/actions/start-dr-watson
+        with:
+          opencode_api_key: ${{ secrets.OPENCODE_API_KEY }}
+
+      - name: Handle the owner request
+        uses: anomalyco/opencode/github@dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06 # v2.2.6
+        env:
+          GITHUB_TOKEN: ${{ secrets.OPENCODE_GH_TOKEN }}
+          GIT_AUTHOR_NAME: Dr Watson
+          GIT_AUTHOR_EMAIL: dr-watson@users.noreply.github.com
+          GIT_COMMITTER_NAME: Dr Watson
+          GIT_COMMITTER_EMAIL: dr-watson@users.noreply.github.com
+        with:
+          model: dr-watson/dr-watson-auto
+          use_github_token: true
+          prompt: |
+            Respond to the following owner comment on
+            ${{ github.event.issue.html_url || github.event.pull_request.html_url }}.
+
+            Comment:
+            ${{ github.event.comment.body }}
+
+            Read the relevant issue/PR context and any files needed to address the specific
+            request. Do not perform open-ended research beyond what is needed for this comment.
+            If the request asks for code changes, follow existing patterns, add or update tests,
+            and run `npm run typecheck`, `npm test`, and `npm run build`. Keep the response concise
+            and actionable. Do not merge, change secrets, or modify GitHub Actions or security
+            configuration.

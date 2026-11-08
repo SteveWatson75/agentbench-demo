@@ -1,0 +1,59 @@
+name: Agent implementation
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  # These apply only to the built-in GITHUB_TOKEN. The workflow uses a repo-scoped
+  # PAT (OPENCODE_GH_TOKEN) for the permissions required to branch, commit and open PRs.
+  contents: read
+
+concurrency:
+  group: agent-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    if: github.event.label.name == 'agent:implement' && github.event.sender.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.OPENCODE_GH_TOKEN }}
+          persist-credentials: true
+
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "Dr Watson"
+          git config --global user.email "dr-watson@users.noreply.github.com"
+
+      - uses: ./.github/actions/start-dr-watson
+        with:
+          opencode_api_key: ${{ secrets.OPENCODE_API_KEY }}
+
+      - name: Implement the approved issue
+        uses: anomalyco/opencode/github@dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06 # v2.2.6
+        env:
+          GITHUB_TOKEN: ${{ secrets.OPENCODE_GH_TOKEN }}
+          GIT_AUTHOR_NAME: Dr Watson
+          GIT_AUTHOR_EMAIL: dr-watson@users.noreply.github.com
+          GIT_COMMITTER_NAME: Dr Watson
+          GIT_COMMITTER_EMAIL: dr-watson@users.noreply.github.com
+        with:
+          model: dr-watson/dr-watson-auto
+          use_github_token: true
+          prompt: |
+            Implement the issue that triggered this workflow as one small, complete vertical slice.
+            Read the repository instructions (`AGENTS.md`, `DECISIONS.md`, `VALIDATION.md`)
+            and the issue acceptance criteria first. If the issue is ambiguous, too broad for
+            one focused change, or blocked by unanswered questions, ask for clarification in an
+            issue comment and stop without editing code.
+
+            Otherwise, follow existing patterns, add or update tests, and run `npm run typecheck`,
+            `npm test`, and `npm run build`. Do not merge, change secrets, or modify GitHub Actions
+            or security configuration. Open a draft pull request that references the issue with
+            `Closes #N`, summarizes the change and checks, and gives the human a concise manual-QA
+            checklist.

@@ -1,0 +1,49 @@
+name: Start Dr Watson router
+ description: Clone the public dr_watson_public router and start its zero-paid-budget API for OpenCode.
+inputs:
+  opencode_api_key:
+    description: Existing OpenCode Go API key, used only by the local router process.
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Clone Dr Watson router
+      shell: bash
+      run: |
+        git clone --depth 1 --branch main \
+          https://github.com/SteveWatson75/dr_watson_public.git \
+          "$RUNNER_TEMP/dr-watson"
+
+    - name: Install router dependencies
+      shell: bash
+      working-directory: ${{ runner.temp }}/dr-watson
+      run: npm ci
+
+    - name: Start zero-paid-budget API
+      shell: bash
+      working-directory: ${{ runner.temp }}/dr-watson
+      env:
+        OPENCODE_API_KEY: ${{ inputs.opencode_api_key }}
+        LLM_PROVIDER: auto
+        LLM_MONTHLY_SOFT_LIMIT_USD: "0"
+        LLM_MONTHLY_HARD_LIMIT_USD: "0"
+      run: |
+        npm run serve > "$RUNNER_TEMP/dr-watson.log" 2>&1 &
+        echo "$!" > "$RUNNER_TEMP/dr-watson.pid"
+
+        for attempt in {1..30}; do
+          if curl --fail --silent http://127.0.0.1:8787/v1/models >/dev/null; then
+            echo "Dr Watson router is ready"
+            exit 0
+          fi
+          sleep 1
+        done
+
+        echo "Dr Watson router failed to start"
+        cat "$RUNNER_TEMP/dr-watson.log"
+        exit 1
