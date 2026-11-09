@@ -1,13 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { evaluateCases } from './evaluator';
 import { sampleCases, sampleResponses } from './sample-data';
 import './App.css';
 
 function App() {
+  const [responses, setResponses] =
+    useState<Record<string, string>>(sampleResponses);
+
   const results = useMemo(
-    () => evaluateCases(sampleCases, sampleResponses),
-    [],
+    () => evaluateCases(sampleCases, responses),
+    [responses],
   );
+
+  const handleResponseChange = (caseId: string, response: string) => {
+    setResponses((current) => ({ ...current, [caseId]: response }));
+  };
 
   const passCount = results.filter((r) => r.passed).length;
 
@@ -37,9 +44,20 @@ function App() {
               <p>
                 <strong>Input:</strong> {result.caseId}
               </p>
-              <p>
-                <strong>Response:</strong> {result.response}
-              </p>
+              <label
+                className="response-label"
+                htmlFor={`response-${result.caseId}`}
+              >
+                Response
+              </label>
+              <textarea
+                id={`response-${result.caseId}`}
+                className="response-input"
+                value={responses[result.caseId] ?? ''}
+                onChange={(event) =>
+                  handleResponseChange(result.caseId, event.target.value)
+                }
+              />
               <ul className="rule-list">
                 {result.ruleResults.map((rule) => (
                   <li
