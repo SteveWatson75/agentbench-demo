@@ -50,7 +50,7 @@ jobs:
 
       - name: Review the pull request
         id: review
-        uses: anomalyco/opencode/github@dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06 # v2.2.6
+        uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a
         timeout-minutes: 10
         continue-on-error: true
         env:

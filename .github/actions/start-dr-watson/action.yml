@@ -1,5 +1,5 @@
 name: Start Dr Watson router
- description: Clone the public dr_watson_public router and start its zero-paid-budget API for OpenCode.
+description: Clone the public dr_watson_public router and start its zero-paid-budget API for OpenCode.
 inputs:
   opencode_api_key:
     description: Existing OpenCode Go API key, used only by the local router process.
